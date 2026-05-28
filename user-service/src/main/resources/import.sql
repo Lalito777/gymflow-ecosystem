@@ -1,0 +1,1 @@
+INSERT INTO users (name, email, subscriptionPlan, password, role) VALUES ('Joaquin Sandoval', 'joaquin@gymflow.cl', 'PREMIUM', 'admin-password', 'ROLE_ADMIN');

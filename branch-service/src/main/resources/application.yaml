@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: branch-service
+  main:
+    lazy-initialization: true
+  jmx:
+    enabled: false
+  datasource:
+    url: jdbc:h2:mem:gymflow_branch_db
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: 8081
+  tomcat:
+    threads:
+      max: 10
+
+logging:
+  level:
+    root: INFO
+    cl.joaedu.branchservice: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+services:
+  user:
+    url: ${USER_SERVICE_URL:http://localhost:8080}
+
+java:
+  home: ${java.home}

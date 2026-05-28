@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: class-service
+  main:
+    lazy-initialization: true
+  datasource:
+    url: jdbc:h2:mem:gymflow_class_db
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: 8087
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
