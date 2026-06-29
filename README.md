@@ -2,6 +2,11 @@
 
 Sistema de gestión de gimnasios construido con arquitectura de microservicios independientes (Spring Boot 3.2.5 / Spring Cloud 2023.0.1, Java 17).
 
+## Equipo
+
+- Joaquín Sandoval
+- Eduardo Sepúlveda
+
 ## Arquitectura
 
 Cada microservicio tiene su propia base de datos (H2 en memoria) y se comunica vía REST, ya sea directamente (Feign Client) o a través del API Gateway. El descubrimiento de servicios se realiza con Eureka.
