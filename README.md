@@ -39,6 +39,18 @@ Cada microservicio expone su documentación interactiva en:
 http://localhost:<puerto>/swagger-ui.html
 ```
 
+## Despliegue con Docker
+
+Cada microservicio tiene su propio `Dockerfile` (multi-stage: build con Maven, runtime con JRE 17). Para levantar todo el ecosistema en contenedores:
+
+```
+docker compose up --build
+```
+
+Esto construye y levanta los 12 contenedores (eureka-server, gateway-service y los 10 microservicios) en una red Docker común (`gymflow-net`). Dentro de los contenedores, Eureka se referencia por el nombre del servicio (`http://eureka-server:8761/eureka/`) en vez de `localhost`, mediante variables de entorno (`EUREKA_CLIENT_SERVICEURL_DEFAULTZONE`, `EUREKA_INSTANCE_PREFERIPADDRESS`) que sobreescriben el `application.yml` sin tener que modificarlo.
+
+Los puertos expuestos hacia el host son los mismos que en ejecución local (ver tabla de arriba).
+
 ## Tests
 
 Tests unitarios (JUnit 5 + Mockito, esquema Given-When-Then) en los servicios: `user-service`, `branch-service`, `membership-service`, `access-service`, `qr-generator-service`.

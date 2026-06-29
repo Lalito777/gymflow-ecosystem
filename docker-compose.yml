@@ -1,0 +1,145 @@
+version: "3.9"
+
+services:
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - gymflow-net
+
+  gateway-service:
+    build: ./gateway-service
+    ports:
+      - "8082:8082"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "8080:8080"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  branch-service:
+    build: ./branch-service
+    ports:
+      - "8081:8081"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  membership-service:
+    build: ./membership-service
+    ports:
+      - "8083:8083"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  access-service:
+    build: ./access-service
+    ports:
+      - "8084:8084"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  qr-generator-service:
+    build: ./qr-generator-service
+    ports:
+      - "8085:8085"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  capacity-service:
+    build: ./capacity-service
+    ports:
+      - "8086:8086"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  class-service:
+    build: ./class-service
+    ports:
+      - "8087:8087"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  routine-service:
+    build: ./routine-service
+    ports:
+      - "8088:8088"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  equipment-service:
+    build: ./equipment-service
+    ports:
+      - "8089:8089"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "8090:8090"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - EUREKA_INSTANCE_PREFERIPADDRESS=true
+    depends_on:
+      - eureka-server
+    networks:
+      - gymflow-net
+
+networks:
+  gymflow-net:
+    driver: bridge
