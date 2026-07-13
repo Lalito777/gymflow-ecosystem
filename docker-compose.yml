@@ -27,8 +27,10 @@ services:
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - EUREKA_INSTANCE_PREFERIPADDRESS=true
+      - BRANCH_SERVICE_URL=http://branch-service:8081
     depends_on:
       - eureka-server
+      - branch-service
     networks:
       - gymflow-net
 
@@ -99,8 +101,10 @@ services:
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - EUREKA_INSTANCE_PREFERIPADDRESS=true
+      - MEMBERSHIP_SERVICE_URL=http://membership-service:8083
     depends_on:
       - eureka-server
+      - membership-service
     networks:
       - gymflow-net
 

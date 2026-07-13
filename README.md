@@ -1,70 +1,105 @@
-# GymFlow Ecosystem
+# GymFlow — Ecosistema de microservicios
 
-Sistema de gestión de gimnasios construido con arquitectura de microservicios independientes (Spring Boot 3.2.5 / Spring Cloud 2023.0.1, Java 17).
-
-## Equipo
-
-- Joaquín Sandoval
-- Eduardo Sepúlveda
+Proyecto EFT DSY1103 (Full Stack 1, Duoc UC). Sistema de gestión de gimnasio construido como
+12 microservicios independientes con Spring Boot 3.2.5, Spring Cloud 2023.0.1 y Java 17.
 
 ## Arquitectura
 
-Cada microservicio tiene su propia base de datos (H2 en memoria) y se comunica vía REST, ya sea directamente (Feign Client) o a través del API Gateway. El descubrimiento de servicios se realiza con Eureka.
-
-| Servicio | Puerto | Responsabilidad |
-|---|---|---|
-| eureka-server | 8761 | Service Discovery |
-| gateway-service | 8082 | API Gateway (Spring Cloud Gateway) |
-| user-service | 8080 | Gestión de usuarios/socios y autenticación |
-| branch-service | 8081 | Gestión de sucursales |
-| membership-service | 8083 | Planes y membresías |
-| access-service | 8084 | Tokens de acceso y validación de entrada |
-| qr-generator-service | 8085 | Generación de códigos QR |
-| capacity-service | 8086 | Aforo en tiempo real por sucursal |
-| class-service | 8087 | Reserva de clases |
-| routine-service | 8088 | Rutinas de entrenamiento |
-| equipment-service | 8089 | Inventario de equipos |
-| notification-service | 8090 | Notificaciones |
-
-## Patrón
-
-Cada servicio sigue el patrón **Controller – Service – Repository (CSR)** con entidades JPA, migraciones Flyway y base de datos H2 propia (Database per Service).
-
-## Cómo levantar el proyecto
-
-1. Requisitos: Java 17, Maven (incluido vía wrapper `mvnw`).
-2. Ejecutar `start-all.cmd` desde la raíz del proyecto: levanta Eureka, el Gateway y los 10 microservicios en ventanas independientes.
-3. Verificar registro de servicios en Eureka: `http://localhost:8761`
-4. Todo el tráfico externo puede entrar por el Gateway: `http://localhost:8082`
-
-## Documentación de API (Swagger/OpenAPI)
-
-Cada microservicio expone su documentación interactiva en:
 ```
-http://localhost:<puerto>/swagger-ui.html
+                                   ┌─────────────────┐
+                                   │  eureka-server   │  :8761
+                                   │ (service registry)│
+                                   └────────▲─────────┘
+                                            │ registro
+                    ┌───────────────────────┼───────────────────────┐
+                    │                       │                       │
+             ┌──────▼──────┐         ┌──────▼──────┐         ┌──────▼──────┐
+Cliente ───▶ │   gateway    │  lb://  │ 10 servicios │  Feign/ │             │
+             │  :8082       │────────▶│ de dominio   │◀────────│ RestClient  │
+             └─────────────┘         └─────────────┘         └─────────────┘
 ```
 
-## Despliegue con Docker
+Todos los servicios se registran en `eureka-server` y el `gateway-service` enruta con
+`lb://<nombre-servicio>` (balanceo vía Eureka, no URLs fijas). El Gateway agrega un header
+`X-Request-Id` a cada request entrante (o lo respeta si ya viene) para trazabilidad entre servicios.
 
-Cada microservicio tiene su propio `Dockerfile` (multi-stage: build con Maven, runtime con JRE 17). Para levantar todo el ecosistema en contenedores:
+## Servicios y puertos
 
-```
+| Servicio | Puerto | Base de datos | Rol |
+|---|---|---|---|
+| eureka-server | 8761 | — | Registro de servicios |
+| gateway-service | 8082 | — | Punto de entrada único, enrutamiento `lb://` |
+| user-service | 8080 | Postgres | Usuarios, autenticación (Basic Auth + BCrypt), roles SOCIO/ADMIN |
+| branch-service | 8081 | Postgres | Sucursales |
+| membership-service | 8083 | Postgres | Membresías y su estado (activa/inactiva) |
+| access-service | 8084 | Postgres | Control de acceso (valida QR + membresía activa) |
+| qr-generator-service | 8085 | H2 (memoria) | Generación de códigos QR |
+| capacity-service | 8086 | H2 (memoria) | Aforo en tiempo real por sucursal |
+| class-service | 8087 | H2 (memoria) | Reserva de clases (valida membresía activa vía RestClient) |
+| routine-service | 8088 | H2 (memoria) | Rutinas de entrenamiento |
+| equipment-service | 8089 | H2 (memoria) | Inventario de equipos |
+| notification-service | 8090 | H2 (memoria) | Notificaciones (EMAIL/SMS/PUSH) |
+
+Los 4 servicios con datos de negocio críticos (usuarios, sucursales, membresías, accesos) usan
+Postgres real en Render. Los otros 8 manejan datos operativos/efímeros y se dejan en H2 en
+memoria — justificación completa en `docs/documentacion-tecnica.md`.
+
+## Comunicación entre servicios
+
+- **Feign** (`@FeignClient`): `user-service → branch-service` (URL fija), `access-service →
+  capacity-service` y `access-service → membership-service` (vía nombre + Eureka).
+- **RestClient** (Spring 3.2+, no `RestTemplate`): `class-service → membership-service`, con
+  timeout de conexión/lectura de 3s y manejo de error si el servicio remoto no responde.
+
+## Ejecutar todo localmente (Docker Compose)
+
+Requisitos: Docker y Docker Compose instalados.
+
+```bash
 docker compose up --build
 ```
 
-Esto construye y levanta los 12 contenedores (eureka-server, gateway-service y los 10 microservicios) en una red Docker común (`gymflow-net`). Dentro de los contenedores, Eureka se referencia por el nombre del servicio (`http://eureka-server:8761/eureka/`) en vez de `localhost`, mediante variables de entorno (`EUREKA_CLIENT_SERVICEURL_DEFAULTZONE`, `EUREKA_INSTANCE_PREFERIPADDRESS`) que sobreescriben el `application.yml` sin tener que modificarlo.
+Esto levanta los 12 servicios en la red `gymflow-net`. `eureka-server` queda disponible en
+`http://localhost:8761` (dashboard de instancias registradas). El resto de servicios expone
+Swagger UI en `http://localhost:<puerto>/swagger-ui.html`.
 
-Los puertos expuestos hacia el host son los mismos que en ejecución local (ver tabla de arriba).
+## Desplegar en Render
 
-## Tests
+Ver `docs/documentacion-tecnica.md` → sección "Ejecución desde cero" para la guía paso a paso
+completa (creación de cuenta, Blueprint, variables de entorno).
 
-Tests unitarios (JUnit 5 + Mockito, esquema Given-When-Then) en los servicios: `user-service`, `branch-service`, `membership-service`, `access-service`, `qr-generator-service`.
+Resumen: el archivo `render.yaml` en la raíz define los 12 servicios + 1 base Postgres. Desde
+el dashboard de Render: **New +** → **Blueprint** → conectar este repositorio → Render crea
+todo automáticamente.
 
-Ejecutar en cada servicio:
+## Estructura de cada microservicio
+
 ```
-./mvnw test
+<servicio>/
+├── Dockerfile
+├── pom.xml
+└── src/main/
+    ├── java/.../
+    │   ├── controller/    # expone endpoints REST, valida con @Valid
+    │   ├── service/       # lógica de negocio
+    │   ├── repository/    # acceso a datos (Spring Data JPA)
+    │   ├── model/          # entidades JPA
+    │   ├── dto/            # objetos de entrada/salida (nunca se expone la entidad directo)
+    │   ├── client/          # Feign/RestClient hacia otros servicios (si aplica)
+    │   └── config/          # GlobalExceptionHandler, OpenApiConfig, seguridad (si aplica)
+    └── resources/
+        ├── application.yaml         # config base (perfil default, H2 o Postgres local)
+        ├── application-render.yml   # overrides para desplegar en Render
+        └── db/migration/            # scripts Flyway versionados (V1, V2, ...)
 ```
 
-## Stack técnico
+## Documentación completa
 
-Spring Boot, Spring Cloud Gateway, Spring Cloud Netflix Eureka, Spring Data JPA, Spring Security, OpenFeign, Flyway, H2 Database, springdoc-openapi, JUnit 5, Mockito, ZXing (generación de QR).
+Ver carpeta `docs/`:
+- `matriz-requerimientos.md` — cumplimiento de cada requisito de la pauta.
+- `plan-cierre-feedback.md` — cómo se resolvió cada observación previa del profesor.
+- `documentacion-funcional.md` — qué hace el sistema, flujos de usuario.
+- `documentacion-tecnica.md` — arquitectura, patrones, cómo correr todo desde cero.
+- `levantamiento-requerimientos-actualizado.md` — requerimientos actualizados a la entrega final.
+- `defensa-individual/sepulveda-eduardo.md` — guía de defensa personal.
+- `gymflow.http` — colección de requests de ejemplo para probar cada endpoint.

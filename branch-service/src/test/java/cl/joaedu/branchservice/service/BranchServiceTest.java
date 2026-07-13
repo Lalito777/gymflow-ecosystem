@@ -4,6 +4,7 @@ import cl.joaedu.branchservice.dto.BranchRequest;
 import cl.joaedu.branchservice.dto.BranchResponse;
 import cl.joaedu.branchservice.model.Branch;
 import cl.joaedu.branchservice.repository.BranchRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -11,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -80,5 +82,28 @@ class BranchServiceTest {
 
         // Then
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findById_conSedeExistente_deberiaRetornarla() {
+        // Given
+        Branch branch = new Branch("Sede Centro", "Av. Principal 123", 50);
+        branch.setId(1L);
+        when(branchRepository.findById(1L)).thenReturn(Optional.of(branch));
+
+        // When
+        BranchResponse result = branchService.findById(1L);
+
+        // Then
+        assertEquals("Sede Centro", result.name());
+    }
+
+    @Test
+    void findById_conSedeInexistente_deberiaLanzarExcepcion() {
+        // Given
+        when(branchRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // When / Then
+        assertThrows(EntityNotFoundException.class, () -> branchService.findById(99L));
     }
 }

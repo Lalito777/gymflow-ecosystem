@@ -22,5 +22,9 @@ public class ClassReservation {
     }
 
     public Long getId() { return id; }
+    public Long getUserId() { return userId; }
+    public Long getClassId() { return classId; }
+    public LocalDateTime getFechaReserva() { return fechaReserva; }
     public String getEstado() { return estado; }
+    public void setEstado(String estado) { this.estado = estado; }
 }

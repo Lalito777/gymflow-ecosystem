@@ -29,3 +29,8 @@ Thumbs.db
 # Spring Boot
 application-local.yml
 application-dev.yml
+
+# Secretos / variables de entorno locales (NUNCA subir credenciales reales)
+.env
+.env.*
+!.env.example

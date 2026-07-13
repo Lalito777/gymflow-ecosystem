@@ -4,6 +4,7 @@ import cl.joaedu.branchservice.dto.BranchRequest;
 import cl.joaedu.branchservice.dto.BranchResponse;
 import cl.joaedu.branchservice.model.Branch;
 import cl.joaedu.branchservice.repository.BranchRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,12 @@ public class BranchService {
         return branchRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    public BranchResponse findById(Long id) {
+        Branch branch = branchRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Sede no encontrada: " + id));
+        return mapToResponse(branch);
     }
 
     public BranchResponse create(BranchRequest request) {

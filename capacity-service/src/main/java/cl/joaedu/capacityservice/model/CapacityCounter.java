@@ -29,5 +29,6 @@ public class CapacityCounter {
     public Integer getCapacidadMaxima() { return capacidadMaxima; }
     public void setPorcentajeOcupacion(Double porcentajeOcupacion) { this.porcentajeOcupacion = porcentajeOcupacion; }
     public void setUltimaActualizacion(LocalDateTime ultimaActualizacion) { this.ultimaActualizacion = ultimaActualizacion; }
+    public LocalDateTime getUltimaActualizacion() { return ultimaActualizacion; }
     public Double getPorcentajeOcupacion() { return porcentajeOcupacion; }
 }

@@ -1,5 +1,6 @@
 package cl.joaedu.qrgeneratorservice.service;
 
+import cl.joaedu.qrgeneratorservice.dto.QrResponse;
 import cl.joaedu.qrgeneratorservice.model.QRData;
 import cl.joaedu.qrgeneratorservice.repository.QRDataRepository;
 import org.junit.jupiter.api.Test;
@@ -27,13 +28,13 @@ class QRServiceTest {
         when(repo.save(any(QRData.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        QRData result = qrService.generateQR(1L, "TOKEN-ABC-123");
+        QrResponse result = qrService.generateQR(1L, "TOKEN-ABC-123");
 
         // Then
         assertNotNull(result);
-        assertEquals(1L, result.getAccessTokenId());
-        assertEquals("TOKEN-ABC-123", result.getContenidoQr());
-        assertTrue(result.getImagenBase64().startsWith("data:image/png;base64,"));
+        assertEquals(1L, result.accessTokenId());
+        assertEquals("TOKEN-ABC-123", result.contenidoQr());
+        assertTrue(result.imagenBase64().startsWith("data:image/png;base64,"));
         verify(repo, times(1)).save(any(QRData.class));
     }
 
@@ -43,11 +44,11 @@ class QRServiceTest {
         when(repo.save(any(QRData.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        QRData result = qrService.generateQR(42L, "TOKEN-XYZ-999");
+        QrResponse result = qrService.generateQR(42L, "TOKEN-XYZ-999");
 
         // Then
-        assertEquals(42L, result.getAccessTokenId());
-        assertEquals("TOKEN-XYZ-999", result.getContenidoQr());
+        assertEquals(42L, result.accessTokenId());
+        assertEquals("TOKEN-XYZ-999", result.contenidoQr());
         verify(repo, times(1)).save(any(QRData.class));
     }
 }

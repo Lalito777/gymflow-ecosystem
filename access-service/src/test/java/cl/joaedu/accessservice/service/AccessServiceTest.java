@@ -2,10 +2,14 @@ package cl.joaedu.accessservice.service;
 
 import cl.joaedu.accessservice.client.CapacityClient;
 import cl.joaedu.accessservice.client.MembershipClient;
+import cl.joaedu.accessservice.dto.AccessLogResponse;
+import cl.joaedu.accessservice.dto.AccessTokenResponse;
+import cl.joaedu.accessservice.dto.MembershipStatusDto;
 import cl.joaedu.accessservice.model.AccessLog;
 import cl.joaedu.accessservice.model.AccessToken;
 import cl.joaedu.accessservice.repository.AccessLogRepository;
 import cl.joaedu.accessservice.repository.AccessTokenRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +18,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,25 +49,25 @@ class AccessServiceTest {
     @Test
     void generateToken_conMembresiaActiva_deberiaCrearToken() {
         // Given
-        when(membershipClient.getStatus(1L)).thenReturn(Map.of("activa", true));
+        when(membershipClient.getStatus(1L)).thenReturn(new MembershipStatusDto(1L, true));
         when(tokenRepo.save(any(AccessToken.class))).thenReturn(token);
 
         // When
-        AccessToken result = accessService.generateToken(1L, 1L);
+        AccessTokenResponse result = accessService.generateToken(1L, 1L);
 
         // Then
         assertNotNull(result);
-        assertEquals("PENDIENTE", result.getEstado());
+        assertEquals("PENDIENTE", result.estado());
         verify(tokenRepo, times(1)).save(any(AccessToken.class));
     }
 
     @Test
     void generateToken_conMembresiaInactiva_deberiaLanzarExcepcion() {
         // Given
-        when(membershipClient.getStatus(1L)).thenReturn(Map.of("activa", false));
+        when(membershipClient.getStatus(1L)).thenReturn(new MembershipStatusDto(1L, false));
 
         // When / Then
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> accessService.generateToken(1L, 1L));
         assertEquals("Membresia no activa en el sistema", ex.getMessage());
         verify(tokenRepo, never()).save(any());
@@ -78,7 +81,7 @@ class AccessServiceTest {
         when(logRepo.save(any(AccessLog.class))).thenReturn(log);
 
         // When
-        AccessLog result = accessService.validateEntry("QR-1234", 1L);
+        AccessLogResponse result = accessService.validateEntry("QR-1234", 1L);
 
         // Then
         assertNotNull(result);
@@ -93,9 +96,9 @@ class AccessServiceTest {
         when(tokenRepo.findByQrCode("QR-NOEXISTE")).thenReturn(Optional.empty());
 
         // When / Then
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        EntityNotFoundException ex = assertThrows(EntityNotFoundException.class,
                 () -> accessService.validateEntry("QR-NOEXISTE", 1L));
-        assertEquals("QR Invalido", ex.getMessage());
+        assertTrue(ex.getMessage().contains("QR-NOEXISTE"));
     }
 
     @Test
@@ -105,9 +108,9 @@ class AccessServiceTest {
         when(tokenRepo.findByQrCode("QR-1234")).thenReturn(Optional.of(token));
 
         // When / Then
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> accessService.validateEntry("QR-1234", 1L));
-        assertEquals("QR Expirado o ya utilizado", ex.getMessage());
+        assertEquals("QR expirado o ya utilizado", ex.getMessage());
     }
 
     @Test
@@ -117,7 +120,7 @@ class AccessServiceTest {
         when(tokenRepo.findByQrCode("QR-9999")).thenReturn(Optional.of(expirado));
 
         // When / Then
-        assertThrows(RuntimeException.class, () -> accessService.validateEntry("QR-9999", 1L));
+        assertThrows(IllegalStateException.class, () -> accessService.validateEntry("QR-9999", 1L));
     }
 
     @Test
@@ -128,7 +131,7 @@ class AccessServiceTest {
         when(logRepo.save(any(AccessLog.class))).thenReturn(new AccessLog(1L, 1L, "ENTRADA", LocalDateTime.now()));
 
         // When
-        AccessLog result = accessService.validateEntry("QR-1234", 1L);
+        AccessLogResponse result = accessService.validateEntry("QR-1234", 1L);
 
         // Then
         assertNotNull(result);

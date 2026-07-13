@@ -1,0 +1,144 @@
+### GymFlow — colección de requests de ejemplo
+### Uso: abrir este archivo en IntelliJ IDEA (soporta .http nativo) o VS Code con la extensión
+### "REST Client". Cambia @host si pruebas contra Render en vez de localhost/Gateway local.
+
+@gateway = http://localhost:8082
+@user = http://localhost:8080
+@branch = http://localhost:8081
+@membership = http://localhost:8083
+@access = http://localhost:8084
+@qr = http://localhost:8085
+@capacity = http://localhost:8086
+@classSvc = http://localhost:8087
+@routine = http://localhost:8088
+@equipment = http://localhost:8089
+@notification = http://localhost:8090
+
+### --- branch-service ---
+
+### Crear sucursal
+POST {{branch}}/api/branches
+Content-Type: application/json
+
+{
+  "nombre": "GymFlow Providencia",
+  "direccion": "Av. Providencia 1234"
+}
+
+### Obtener sucursal por id
+GET {{branch}}/api/branches/1
+
+### --- user-service ---
+
+### Crear usuario (requiere que branchId exista)
+POST {{user}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Eduardo Sepulveda",
+  "email": "socio@gymflow.cl",
+  "subscriptionPlan": "BASICO",
+  "password": "clave123",
+  "role": "SOCIO",
+  "branchId": 1
+}
+
+### Listar usuarios (requiere rol ADMIN — Basic Auth)
+GET {{user}}/api/users
+Authorization: Basic YWRtaW5AZ3ltZmxvdy5jbDphZG1pbjEyMw==
+
+### --- membership-service ---
+
+### Crear membresía
+POST {{membership}}/api/membership
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "activa": true
+}
+
+### Consultar estado de membresía
+GET {{membership}}/api/membership/status/2
+
+### --- qr-generator-service ---
+
+### Generar QR para un usuario
+POST {{qr}}/api/qr/generate
+Content-Type: application/json
+
+{
+  "userId": 2
+}
+
+### --- access-service ---
+
+### Validar entrada con QR
+POST {{access}}/api/access/validate
+Content-Type: application/json
+
+{
+  "qrCode": "REEMPLAZAR-CON-CODIGO-GENERADO",
+  "userId": 2
+}
+
+### --- capacity-service ---
+
+### Incrementar aforo de una sucursal
+POST {{capacity}}/api/capacity/1/increment
+
+### Decrementar aforo de una sucursal
+POST {{capacity}}/api/capacity/1/decrement
+
+### Consultar aforo actual
+GET {{capacity}}/api/capacity/1
+
+### --- class-service ---
+
+### Reservar clase (valida membresía activa)
+POST {{classSvc}}/api/classes/reserve
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "classId": 10
+}
+
+### --- routine-service ---
+
+### Crear rutina
+POST {{routine}}/api/routines
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "descripcion": "Rutina de fuerza - 3 dias por semana"
+}
+
+### --- equipment-service ---
+
+### Registrar equipo
+POST {{equipment}}/api/equipment
+Content-Type: application/json
+
+{
+  "nombre": "Cinta de correr #4",
+  "estado": "DISPONIBLE"
+}
+
+### --- notification-service ---
+
+### Registrar notificacion
+POST {{notification}}/api/notifications
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "tipo": "EMAIL",
+  "mensaje": "Tu membresia vence en 3 dias"
+}
+
+### --- Todo lo anterior, pero pasando por el Gateway (recomendado para la demo) ---
+### Reemplaza {{user}} etc. por {{gateway}}/<mismo path>, ej:
+
+### GET {{gateway}}/api/users/1

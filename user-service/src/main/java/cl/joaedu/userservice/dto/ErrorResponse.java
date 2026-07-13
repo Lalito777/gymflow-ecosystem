@@ -1,9 +1,21 @@
 package cl.joaedu.userservice.dto;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 public record ErrorResponse(
-        String message,
+        LocalDateTime timestamp,
         int status,
-        LocalDateTime timestamp
-) {}
+        String error,
+        String message,
+        String path,
+        Map<String, String> fields
+) {
+    public ErrorResponse(int status, String error, String message, String path) {
+        this(LocalDateTime.now(), status, error, message, path, null);
+    }
+
+    public ErrorResponse(int status, String error, String message, String path, Map<String, String> fields) {
+        this(LocalDateTime.now(), status, error, message, path, fields);
+    }
+}

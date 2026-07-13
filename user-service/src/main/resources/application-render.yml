@@ -1,0 +1,30 @@
+# Perfil activo en Render (SPRING_PROFILES_ACTIVE=render).
+# Sobrescribe SOLO lo que cambia respecto a application.yaml: BD real (Postgres en vez de H2)
+# y las URLs de Eureka/branch-service, que en Render se arman a partir de variables de entorno
+# que el Blueprint (render.yaml) inyecta automaticamente vinculando los servicios entre si.
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+services:
+  branch:
+    url: http://${BRANCH_HOST}:${BRANCH_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST}:${EUREKA_PORT}/eureka/
+  instance:
+    # true: cada instancia se registra en Eureka con su IP interna de Render (no con el hostname
+    # del contenedor, que no es resoluble por los demas servicios). La red privada de Render permite
+    # que otros servicios lleguen directo a esa IP mientras la instancia esta viva.
+    prefer-ip-address: true

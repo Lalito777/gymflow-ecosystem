@@ -7,5 +7,5 @@ RUN mvn -q clean package -DskipTests
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8086} -jar app.jar"]
 

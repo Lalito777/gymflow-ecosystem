@@ -5,5 +5,6 @@ public record UserResponse(
         String name,
         String email,
         String subscriptionPlan,
-        String role
+        String role,
+        Long branchId
 ) {}
