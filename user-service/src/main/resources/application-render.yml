@@ -26,14 +26,23 @@ spring:
 
 services:
   branch:
-    url: http://${BRANCH_HOST}:${BRANCH_PORT}
+    url: ${BRANCH_SERVICE_URL}
 
+# EUREKA_SERVER_URL, BRANCH_SERVICE_URL: no se pueden generar automaticamente desde render.yaml
+# (Render asigna el subdominio publico -con sufijo aleatorio- recien cuando el servicio ya existe),
+# asi que se configuran una sola vez a mano en el dashboard, en Environment, con la URL publica
+# real de cada servicio (https://eureka-server-xxxx.onrender.com/eureka/, etc).
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_HOST}:${EUREKA_PORT}/eureka/
+      defaultZone: ${EUREKA_SERVER_URL}
   instance:
-    # true: cada instancia se registra en Eureka con su IP interna de Render (no con el hostname
-    # del contenedor, que no es resoluble por los demas servicios). La red privada de Render permite
-    # que otros servicios lleguen directo a esa IP mientras la instancia esta viva.
-    prefer-ip-address: true
+    # El plan free de Render permite ENVIAR trafico por la red privada, pero no RECIBIRLO. Por eso
+    # cada instancia se anuncia en Eureka con su URL PUBLICA (https), no con su IP/hostname privado:
+    # asi las llamadas entre servicios (Gateway lb://, Feign por nombre) viajan por internet publico,
+    # que si funciona en ambas direcciones incluso en el plan free.
+    hostname: ${RENDER_EXTERNAL_HOSTNAME}
+    prefer-ip-address: false
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: 443

@@ -138,13 +138,34 @@ Para bajar todo: `docker compose down`.
 2. Anotar la fecha de expiración del plan free (Render la muestra en la página del recurso) y
    agendar la defensa antes de esa fecha, o hacer upgrade si es necesario.
 
+**Paso 4 — Conectar los servicios entre sí (paso manual, una sola vez).**
+
+El plan free de Render permite que un servicio **envíe** tráfico por la red privada, pero no que
+lo **reciba**. Como los 12 servicios están en el plan free, no pueden usar la red privada entre
+ellos (se intentó primero con `fromService`/hostnames internos y falló con
+`UnknownHostException` — ver `plan-cierre-feedback.md` si el profesor pregunta por el proceso).
+La solución: cada servicio habla con los demás por su **URL pública** (`https://...onrender.com`),
+que sí funciona en ambas direcciones incluso en el plan free. Render solo conoce esa URL después
+de crear el servicio (lleva un sufijo aleatorio), así que hay que copiarla a mano una vez:
+
+1. Entra a **eureka-server** en el dashboard y copia su URL pública.
+2. Para cada uno de los otros 11 servicios: entra a **Environment** → agrega la variable
+   `EUREKA_SERVER_URL` con el valor `https://<url-de-eureka-server>/eureka/` (con el `/eureka/`
+   al final).
+3. Copia también la URL pública de **branch-service** y agrégala como `BRANCH_SERVICE_URL`
+   (sin el `/eureka/`) únicamente en **user-service**.
+4. Copia la URL pública de **membership-service** y agrégala como `MEMBERSHIP_SERVICE_URL`
+   únicamente en **class-service**.
+5. Cada servicio se redespliega solo apenas guardas la variable nueva.
+
 **Notas importantes para la defensa:**
-- Cada servicio se registra en Eureka usando su IP interna de Render (no su hostname), porque
-  el hostname del contenedor no es resoluble por los demás servicios — esto está configurado en
-  `application-render.yml` de cada servicio (`eureka.instance.prefer-ip-address: true`). Si el
-  profesor pregunta por qué, esa es la explicación técnica.
-- Las variables de entorno como `DB_HOST`, `EUREKA_HOST`, `BRANCH_HOST`, etc. no están
-  hardcodeadas en ningún archivo: `render.yaml` las genera dinámicamente en el momento del
-  deploy usando `fromService` (para apuntar a otro servicio del mismo Blueprint) y
-  `fromDatabase` (para apuntar a la base Postgres). Esto es lo que hace posible que los 12
-  servicios se conecten entre sí sin que nadie escriba una URL a mano.
+- Cada servicio se registra en Eureka anunciando su **URL pública** (no su IP ni hostname
+  privado), vía `eureka.instance.hostname: ${RENDER_EXTERNAL_HOSTNAME}` y
+  `secure-port-enabled: true` / `secure-port: 443` en `application-render.yml`. Así, cuando el
+  Gateway o un Feign client resuelven un servicio por nombre a través de Eureka, la URL que
+  reciben es pública y viaja por internet normal, no por la red privada restringida del plan
+  free. `RENDER_EXTERNAL_HOSTNAME` es una variable que Render inyecta automáticamente en cada
+  servicio (no hay que configurarla a mano).
+- Las variables `DB_HOST`, `DB_PORT`, etc. (conexión a Postgres) sí se generan automáticamente
+  vía `fromDatabase` en `render.yaml` — esa conexión no pasa por la red privada entre servicios,
+  así que no tiene la misma restricción.

@@ -1,20 +1,31 @@
 # Blueprint de Render para GymFlow (12 microservicios + 1 base Postgres).
 #
 # Que hace este archivo: Render lo lee UNA vez cuando conectas el repo ("New +" -> "Blueprint")
-# y crea automaticamente los 13 recursos de abajo (12 "web services" + 1 base de datos),
-# ya conectados entre si. No hay que crear cada servicio a mano en el dashboard.
+# y crea automaticamente los 13 recursos de abajo (12 "web services" + 1 base de datos).
 #
-# Como se conectan los servicios entre si sin hardcodear URLs:
-#   fromService: le pide a Render el host/puerto interno (red privada) de OTRO servicio
-#                del propio Blueprint en el momento del deploy.
-#   fromDatabase: le pide a Render host/puerto/usuario/password de la base Postgres.
-# Esos valores se inyectan como variables de entorno (EUREKA_HOST, DB_HOST, etc.), que son
-# EXACTAMENTE las que ya usan los application-render.yml de cada servicio.
+# IMPORTANTE - por que NO se usa fromService para conectar los servicios entre si:
+# El plan free de Render permite que un servicio ENVIE trafico por la red privada, pero no que
+# lo RECIBA (ver docs/documentacion-tecnica.md). Como los 12 servicios son free, cualquier
+# variable armada con fromService (host/port privados) apunta a una direccion que el otro
+# servicio no puede aceptar -> UnknownHostException. La solucion es que cada servicio se
+# comunique con los demas por su URL PUBLICA (https://<servicio>.onrender.com), que si funciona
+# en ambas direcciones en el plan free.
+#
+# El problema: Render solo conoce la URL publica de un servicio DESPUES de crearlo (el
+# subdominio lleva un sufijo aleatorio que no se puede predecir en este archivo). Por eso estas
+# 3 variables se configuran UNA VEZ A MANO en el dashboard (Environment de cada servicio),
+# despues del primer deploy exitoso:
+#   - EUREKA_SERVER_URL   -> en los 11 servicios de dominio (todos menos eureka-server), ej:
+#                            https://eureka-server-xxxx.onrender.com/eureka/
+#   - BRANCH_SERVICE_URL  -> solo en user-service, ej: https://branch-service-xxxx.onrender.com
+#   - MEMBERSHIP_SERVICE_URL -> solo en class-service, ej: https://membership-service-xxxx.onrender.com
+#
+# fromDatabase si funciona sin problema (no es red privada entre servicios, es la conexion
+# directa a Postgres, que Render expone igual en el plan free).
 #
 # Los 4 servicios con datos "de negocio" reales (usuarios, sucursales, membresias, accesos)
-# usan la base Postgres compartida (cada uno con sus propias tablas). Los otros 8 servicios
-# siguen usando H2 en memoria (justificable: datos operativos/efimeros, no criticos si se
-# reinician; ver docs/documentacion-tecnica.md para el detalle de esta decision).
+# usan la base Postgres compartida, cada uno en su propio schema (ver documentacion-tecnica.md).
+# Los otros 8 servicios siguen usando H2 en memoria (datos operativos/efimeros).
 
 databases:
   - name: gymflow-postgres
@@ -49,16 +60,7 @@ services:
         value: 8082
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService:
-          name: eureka-server
-          type: web
-          property: host
-      - key: EUREKA_PORT
-        fromService:
-          name: eureka-server
-          type: web
-          property: port
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
 
   # -------------------------------------------------------------------------
   # Servicios con Postgres real (user, branch, membership, access)
@@ -74,14 +76,7 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
-      - key: BRANCH_HOST
-        fromService: { name: branch-service, type: web, property: host }
-      - key: BRANCH_PORT
-        fromService: { name: branch-service, type: web, property: port }
+      # EUREKA_SERVER_URL, BRANCH_SERVICE_URL: agregar a mano en el dashboard (ver nota arriba)
       - key: DB_HOST
         fromDatabase: { name: gymflow-postgres, property: host }
       - key: DB_PORT
@@ -104,10 +99,7 @@ services:
         value: 8081
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
       - key: DB_HOST
         fromDatabase: { name: gymflow-postgres, property: host }
       - key: DB_PORT
@@ -130,10 +122,7 @@ services:
         value: 8083
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
       - key: DB_HOST
         fromDatabase: { name: gymflow-postgres, property: host }
       - key: DB_PORT
@@ -156,10 +145,7 @@ services:
         value: 8084
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
       - key: DB_HOST
         fromDatabase: { name: gymflow-postgres, property: host }
       - key: DB_PORT
@@ -185,10 +171,7 @@ services:
         value: 8085
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
 
   - type: web
     name: capacity-service
@@ -201,10 +184,7 @@ services:
         value: 8086
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
 
   - type: web
     name: class-service
@@ -217,14 +197,7 @@ services:
         value: 8087
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
-      - key: MEMBERSHIP_HOST
-        fromService: { name: membership-service, type: web, property: host }
-      - key: MEMBERSHIP_PORT
-        fromService: { name: membership-service, type: web, property: port }
+      # EUREKA_SERVER_URL, MEMBERSHIP_SERVICE_URL: agregar a mano en el dashboard (ver nota arriba)
 
   - type: web
     name: routine-service
@@ -237,10 +210,7 @@ services:
         value: 8088
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
 
   - type: web
     name: equipment-service
@@ -253,10 +223,7 @@ services:
         value: 8089
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)
 
   - type: web
     name: notification-service
@@ -269,7 +236,4 @@ services:
         value: 8090
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: EUREKA_HOST
-        fromService: { name: eureka-server, type: web, property: host }
-      - key: EUREKA_PORT
-        fromService: { name: eureka-server, type: web, property: port }
+      # EUREKA_SERVER_URL: agregar a mano en el dashboard (ver nota arriba)

@@ -1,10 +1,14 @@
 services:
   membership:
-    url: http://${MEMBERSHIP_HOST}:${MEMBERSHIP_PORT}
+    url: ${MEMBERSHIP_SERVICE_URL}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_HOST}:${EUREKA_PORT}/eureka/
+      defaultZone: ${EUREKA_SERVER_URL}
   instance:
-    prefer-ip-address: true
+    hostname: ${RENDER_EXTERNAL_HOSTNAME}
+    prefer-ip-address: false
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: 443
