@@ -16,7 +16,7 @@ import org.springframework.web.client.RestClient;
 public class RestClientConfig {
 
     @Bean
-    public RestClient membershipRestClient(@Value("${services.membership.url}") String membershipUrl) {
+    public RestClient membershipRestClient(@Value("${MEMBERSHIP_SERVICE_URL:http://localhost:8083}") String membershipUrl) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
         factory.setReadTimeout(3000);

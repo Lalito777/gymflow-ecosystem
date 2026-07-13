@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
-@FeignClient(name = "branch-service", url = "${services.branch.url}")
+@FeignClient(name = "branch-service", url = "${BRANCH_SERVICE_URL:http://localhost:8081}")
 public interface BranchClient {
 
     @GetMapping("/api/branches")

@@ -1,7 +1,5 @@
-services:
-  membership:
-    url: ${MEMBERSHIP_SERVICE_URL}
-
+# MEMBERSHIP_SERVICE_URL se lee directo desde RestClientConfig.java (@Value), no desde este
+# archivo, para evitar ambiguedad entre el default de application.yaml y el override de este perfil.
 eureka:
   client:
     service-url:

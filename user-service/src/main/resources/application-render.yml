@@ -24,14 +24,12 @@ spring:
     schemas: user_service
     create-schemas: true
 
-services:
-  branch:
-    url: ${BRANCH_SERVICE_URL}
-
 # EUREKA_SERVER_URL, BRANCH_SERVICE_URL: no se pueden generar automaticamente desde render.yaml
 # (Render asigna el subdominio publico -con sufijo aleatorio- recien cuando el servicio ya existe),
 # asi que se configuran una sola vez a mano en el dashboard, en Environment, con la URL publica
-# real de cada servicio (https://eureka-server-xxxx.onrender.com/eureka/, etc).
+# real de cada servicio (https://eureka-server-xxxx.onrender.com/eureka/, etc). BRANCH_SERVICE_URL
+# se lee directo desde BranchClient.java (@FeignClient url=), no desde este archivo, para evitar
+# ambiguedad entre el default de application.yaml y el override de este perfil.
 eureka:
   client:
     service-url:
