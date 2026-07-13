@@ -27,12 +27,22 @@ clases, seguimiento de rutinas y notificaciones.
 2. Otros servicios consultan si un usuario tiene membresía activa vía
    `GET /api/membership/status/{userId}`, que devuelve un DTO simple (`activa: true/false`).
 
-### 3. Control de acceso físico
-1. El sistema de acceso escanea un QR (generado previamente por `qr-generator-service`).
-2. `access-service` valida el QR y consulta a `membership-service` (Feign) si el usuario tiene
-   membresía activa antes de autorizar el ingreso.
-3. Si el QR es inválido, ya fue usado, o la membresía no está activa, se rechaza el acceso con
-   un mensaje específico (404 QR inválido, 409/400 membresía inactiva).
+### 3. Control de acceso físico (flujo de 3 pasos, 3 servicios distintos)
+1. **Generar token** (`POST /api/access/generate` en `access-service`, con `userId` y
+   `branchId`): antes de crear el token, `access-service` consulta a `membership-service`
+   (Feign) si el usuario tiene membresía activa. Si no la tiene, se rechaza aquí mismo (409) y
+   nunca se llega a emitir un QR.
+2. **Generar la imagen QR** (`POST /api/qr/create` en `qr-generator-service`, con el
+   `accessTokenId` y el código del paso anterior): genera la imagen (Base64) que se le muestra
+   al socio.
+3. **Validar la entrada** (`POST /api/access/validate` en `access-service`, con el `qrCode` y
+   `branchId`): revisa que el token exista, no haya expirado y no haya sido usado antes; lo
+   marca como `USADO` (evita reuso) y notifica a `capacity-service` para incrementar el aforo de
+   la sucursal (de forma tolerante a fallas: si `capacity-service` no responde, el ingreso se
+   registra igual, solo se pierde el incremento de aforo).
+
+La validación de membresía activa ocurre al **generar** el token, no al validarlo — una vez que
+el token existe, ya se confirmó que la membresía estaba activa en ese momento.
 
 ### 4. Reserva de clases
 1. Un socio reserva un cupo en una clase (`POST /api/classes/reserve`).

@@ -1,6 +1,7 @@
 ### GymFlow — colección de requests de ejemplo
 ### Uso: abrir este archivo en IntelliJ IDEA (soporta .http nativo) o VS Code con la extensión
-### "REST Client". Cambia @host si pruebas contra Render en vez de localhost/Gateway local.
+### "REST Client". Cambia las variables @... si pruebas contra Render en vez de localhost.
+### Verificado contra el código real de cada controller/DTO (13 jul 2026).
 
 @gateway = http://localhost:8082
 @user = http://localhost:8080
@@ -21,16 +22,20 @@ POST {{branch}}/api/branches
 Content-Type: application/json
 
 {
-  "nombre": "GymFlow Providencia",
-  "direccion": "Av. Providencia 1234"
+  "name": "GymFlow Providencia",
+  "address": "Av. Providencia 1234",
+  "maxCapacity": 100
 }
+
+### Listar sucursales
+GET {{branch}}/api/branches
 
 ### Obtener sucursal por id
 GET {{branch}}/api/branches/1
 
 ### --- user-service ---
 
-### Crear usuario (requiere que branchId exista)
+### Crear usuario (requiere que branchId exista - crea la sucursal primero)
 POST {{user}}/api/users
 Content-Type: application/json
 
@@ -43,59 +48,68 @@ Content-Type: application/json
   "branchId": 1
 }
 
-### Listar usuarios (requiere rol ADMIN — Basic Auth)
+### Listar usuarios (requiere rol ADMIN — Basic Auth con el usuario seed admin@gymflow.cl / admin123)
 GET {{user}}/api/users
 Authorization: Basic YWRtaW5AZ3ltZmxvdy5jbDphZG1pbjEyMw==
 
 ### --- membership-service ---
 
-### Crear membresía
+### Crear membresía (planId debe existir en la tabla de planes del servicio)
 POST {{membership}}/api/membership
 Content-Type: application/json
 
 {
   "userId": 2,
-  "activa": true
+  "planId": 1
 }
 
-### Consultar estado de membresía
+### Consultar estado de membresía (usado internamente por access-service y class-service)
 GET {{membership}}/api/membership/status/2
 
-### --- qr-generator-service ---
+### --- access-service + qr-generator-service (flujo completo de acceso) ---
 
-### Generar QR para un usuario
-POST {{qr}}/api/qr/generate
+### Paso 1: generar token de acceso (valida membresia activa via Feign)
+### Guarda el "qrCode" y el "id" de la respuesta, los necesitas en los pasos 2 y 3.
+POST {{access}}/api/access/generate
 Content-Type: application/json
 
 {
-  "userId": 2
+  "userId": 2,
+  "branchId": 1
 }
 
-### --- access-service ---
+### Paso 2: generar la imagen QR a partir del token creado en el paso 1
+### accessTokenId = "id" de la respuesta anterior; contenido = "qrCode" de la respuesta anterior
+POST {{qr}}/api/qr/create
+Content-Type: application/json
 
-### Validar entrada con QR
+{
+  "accessTokenId": 1,
+  "contenido": "REEMPLAZAR-CON-QRCODE-DEL-PASO-1"
+}
+
+### Paso 3: validar la entrada con el QR (marca el token como USADO, incrementa aforo)
 POST {{access}}/api/access/validate
 Content-Type: application/json
 
 {
-  "qrCode": "REEMPLAZAR-CON-CODIGO-GENERADO",
-  "userId": 2
+  "qrCode": "REEMPLAZAR-CON-QRCODE-DEL-PASO-1",
+  "branchId": 1
 }
 
 ### --- capacity-service ---
+### No tiene endpoint GET propio; el valor se ve reflejado en la respuesta de increment/decrement,
+### o llamando a estos mismos endpoints (son idempotentes de lectura del estado actual + 1/-1).
 
 ### Incrementar aforo de una sucursal
 POST {{capacity}}/api/capacity/1/increment
 
-### Decrementar aforo de una sucursal
+### Decrementar aforo de una sucursal (nunca baja de 0)
 POST {{capacity}}/api/capacity/1/decrement
-
-### Consultar aforo actual
-GET {{capacity}}/api/capacity/1
 
 ### --- class-service ---
 
-### Reservar clase (valida membresía activa)
+### Reservar clase (valida membresía activa vía RestClient + evita reserva duplicada)
 POST {{classSvc}}/api/classes/reserve
 Content-Type: application/json
 
@@ -112,33 +126,43 @@ Content-Type: application/json
 
 {
   "userId": 2,
-  "descripcion": "Rutina de fuerza - 3 dias por semana"
+  "nombre": "Rutina de fuerza",
+  "objetivo": "Hipertrofia - 3 dias por semana",
+  "creadoPor": "admin@gymflow.cl"
 }
+
+### Listar rutinas de un socio
+GET {{routine}}/api/routines/user/2
 
 ### --- equipment-service ---
 
-### Registrar equipo
+### Registrar equipo (estado: DISPONIBLE | EN_MANTENCION | FUERA_DE_SERVICIO)
 POST {{equipment}}/api/equipment
 Content-Type: application/json
 
 {
   "nombre": "Cinta de correr #4",
+  "categoria": "Cardio",
+  "branchId": 1,
   "estado": "DISPONIBLE"
 }
 
+### Listar equipos de una sucursal
+GET {{equipment}}/api/equipment/branch/1
+
 ### --- notification-service ---
 
-### Registrar notificacion
-POST {{notification}}/api/notifications
+### Registrar notificacion (tipo: EMAIL | SMS | PUSH) - OJO: el path es /api/notify, no /api/notifications
+POST {{notification}}/api/notify
 Content-Type: application/json
 
 {
-  "userId": 2,
+  "destinatarioId": 2,
   "tipo": "EMAIL",
   "mensaje": "Tu membresia vence en 3 dias"
 }
 
 ### --- Todo lo anterior, pero pasando por el Gateway (recomendado para la demo) ---
-### Reemplaza {{user}} etc. por {{gateway}}/<mismo path>, ej:
+### Reemplaza {{user}}, {{branch}}, etc. por {{gateway}} manteniendo el mismo path, ej:
 
-### GET {{gateway}}/api/users/1
+### GET {{gateway}}/api/branches

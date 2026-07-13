@@ -12,8 +12,17 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: user_service
   flyway:
     enabled: true
+    # Los 4 servicios con Postgres comparten la misma base "gymflow" (limite del plan free de
+    # Render: 1 sola base). Sin esto, todos escribirian en la misma tabla flyway_schema_history
+    # y Flyway confundiria el V1 de un servicio con el V1 de otro (choque de checksum). Cada
+    # servicio es dueno de su propio schema dentro de la base compartida.
+    schemas: user_service
+    create-schemas: true
 
 services:
   branch:

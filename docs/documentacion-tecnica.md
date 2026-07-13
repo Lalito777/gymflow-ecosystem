@@ -14,6 +14,19 @@
 - JUnit 5 + Mockito (pruebas unitarias)
 - Docker + Docker Compose (local) / Render (remoto)
 
+## Nota: los 4 servicios con Postgres comparten instancia, no schema
+
+El plan free de Render solo permite una base de datos Postgres. Los 4 servicios con datos
+críticos (`user`, `branch`, `membership`, `access`) comparten esa misma instancia, pero cada
+uno tiene su **propio schema** (`user_service`, `branch_service`, `membership_service`,
+`access_service`), configurado en su `application-render.yml`
+(`spring.flyway.schemas` + `spring.jpa.properties.hibernate.default_schema`). Sin esto, los 4
+servicios escribirían su historial de migraciones Flyway en la misma tabla
+`public.flyway_schema_history`, y Flyway confundiría la migración `V1` de un servicio con la
+`V1` de otro (mismo número de versión, contenido distinto → error de checksum). Cada schema
+mantiene su propio historial de migraciones y sus propias tablas, aislado de los demás, aunque
+técnicamente vivan en la misma base de datos física.
+
 ## Patrones aplicados
 
 **Controller → Service → Repository (CSR).** Cada servicio de dominio separa: `controller`

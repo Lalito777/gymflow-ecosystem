@@ -8,8 +8,17 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: access_service
   flyway:
     enabled: true
+    # Ver nota en user-service/application-render.yml: schema propio por servicio dentro de
+    # la misma base compartida "gymflow", para que Flyway no mezcle migraciones V1 de servicios
+    # distintos en la misma tabla flyway_schema_history. access-service ya habia desplegado una
+    # vez usando el schema "public" por defecto; con este cambio arranca limpio en su propio schema.
+    schemas: access_service
+    create-schemas: true
 
 eureka:
   client:
