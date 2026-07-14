@@ -102,10 +102,11 @@ graph TD
     style Eureka fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
-###Flujo de Generación de Acceso y QR (Orquestación Síncrona)
-##Este es el camino exacto que recorre la información cuando el usuario pasa por el torniquete electrónico, 
-aplicando la comunicación por cliente REST declarativo (Feign Client) y la serialización binaria:
+### Flujo de Generación de Acceso y QR (Orquestación Síncrona)
 
+Este es el camino exacto que recorre la información cuando el usuario pasa por el torniquete electrónico, aplicando la comunicación por cliente REST declarativo (**Feign Client**) y la serialización binaria:
+
+```mermaid
 sequenceDiagram
     autonumber
     actor Cliente as Postman / Cliente
@@ -124,3 +125,4 @@ sequenceDiagram
     QR-->>AS: Retorna JSON con Imagen en Base64
     
     AS-->>Cliente: Retorna Acceso 'PENDIENTE' con QR en Base64 (201 Created)
+```
