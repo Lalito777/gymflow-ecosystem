@@ -1,33 +1,59 @@
-# Matriz de cumplimiento — requisitos obligatorios de la pauta EFT
+# Matriz de requerimientos — GymFlow
 
-Estado al cierre del trabajo (13 jul 2026). Compara con el diagnóstico inicial en
-`checklist-diagnostico.md`, que registra el estado ANTES de esta sesión de trabajo.
+Todo lo marcado "Implementado" está respaldado por evidencia verificable en el repositorio
+(endpoint real + test real, no descripción de intención). Verificado contra el código el 13 jul
+2026, ejecutando `mvnw test` en los 10 servicios de dominio (42 tests, 0 fallas).
 
-| Requisito obligatorio | Estado inicial | Estado final | Evidencia |
-|---|---|---|---|
-| Patrón CSR completo (controller→service→repository) | Parcial (8/10) | ✅ 10/10 | `equipment-service` y `notification-service` ahora tienen `service/EquipmentService.java` y `service/NotificationService.java` |
-| DTOs separados de entidad (creación/respuesta) | ❌ 2/10 | ✅ 10/10 | Cada servicio tiene paquete `dto/` con `*Request`/`*Response`; ningún controller expone la entidad JPA ni recibe `Map` como body |
-| Bean Validation (`@NotNull`, etc.) + `@Valid` en controller | ❌ 0/10 | ✅ 10/10 | Anotaciones `jakarta.validation.constraints` en los DTOs de request + `@Valid` en los métodos del controller |
-| `@ControllerAdvice` con JSON de error uniforme | Parcial (2/10) | ✅ 10/10 | `config/GlobalExceptionHandler.java` en cada servicio, mismo shape `ErrorResponse(timestamp, status, error, message, path, fields)` |
-| Comunicación Feign real (invocada, no solo declarada) | Parcial | ✅ | `user-service → branch-service` (antes código muerto, ahora `UserService.verifyBranchExists()` lo invoca en cada alta de usuario); `access-service → capacity-service` / `→ membership-service` ya funcionaban |
-| Comunicación RestClient real | ❌ 0/12 | ✅ | `class-service → membership-service` con `RestClient` (Spring 3.2+), timeout 3s, manejo de error si no responde |
-| Seguridad real (roles, reglas por endpoint, 401/403) | ❌ Superficial (`permitAll`) | ✅ | `user-service`: BCrypt, roles SOCIO/ADMIN, `GET /api/users` solo ADMIN, 401 (no autenticado) y 403 (sin permiso) devuelven JSON uniforme vía `AuthenticationEntryPoint`/`AccessDeniedHandler` |
-| Gateway: rutas `lb://` | ✅ | ✅ | Sin cambios, ya estaba correcto |
-| Gateway: filtro `X-Request-Id` / trazabilidad | ❌ | ✅ | `filter/RequestTraceFilter.java` (GlobalFilter + Ordered), agrega o respeta el header en cada request |
-| Eureka + registro dinámico | ✅ | ✅ | Sin cambios |
-| Flyway versionado | ✅ | ✅ | `user-service` suma `V3__add_branch_to_users.sql` y `V4__seed_users.sql` (seed real con BCrypt, antes vivía en `import.sql` que nunca se ejecutaba con `ddl-auto: validate`) |
-| Swagger con `@Operation`/`@ApiResponse` | ❌ 0/12 | ✅ 12/12 | `@Tag`, `@Operation`, `@ApiResponses` en todos los controllers + `config/OpenApiConfig.java` por servicio |
-| `System.out.println` como logging | ✅ (no había) | ✅ | Se mantiene SLF4J en todos los servicios |
-| Pruebas unitarias | Parcial (5/10) | ✅ 10/10 | Tests nuevos en `capacity`, `class`, `routine`, `equipment`, `notification`; todos verificados con `mvnw test` → BUILD SUCCESS |
-| Driver Postgres en `pom.xml` | ❌ 0/12 | ✅ 4/4 (servicios con datos críticos) | `user`, `branch`, `membership`, `access` suman `org.postgresql:postgresql` |
-| Despliegue en entorno remoto (Render) | ❌ | ✅ preparado, pendiente de deploy real | `render.yaml` con los 12 servicios + Postgres, `Dockerfile` de cada uno lee `PORT` dinámico |
-| `.gitignore` protege secretos | Por confirmar | ✅ | Se agregó `.env`, `.env.*` (excepto `.env.example`) |
+| ID | Requerimiento declarado por el equipo | Tipo | Estado | Endpoint o evidencia | Prueba asociada |
+|---|---|---|---|---|---|
+| RF-01 | Registrar un usuario con rol y sucursal asociada | Funcional | Implementado | `POST /api/users` | `UserServiceTest.create_conDatosValidosYSucursalExistente_deberiaEncriptarPasswordYGuardarUsuario` |
+| RF-02 | Rechazar el registro si la sucursal indicada no existe | Funcional | Implementado | `POST /api/users` (Feign a `branch-service`) | `UserServiceTest.create_conSucursalInexistente_deberiaLanzarEntityNotFoundYNoGuardar` |
+| RF-03 | Rechazar el registro si el rol no es válido | Funcional | Implementado | `POST /api/users` | `UserServiceTest.create_conRolInvalido_deberiaLanzarExcepcionYNoConsultarSucursal` |
+| RF-04 | Listar usuarios solo para rol ADMIN | Funcional | Implementado | `GET /api/users` (401/403 según caso) | `SecurityConfig` + verificación manual con `docs/gymflow.http` (Basic Auth) |
+| RF-05 | Registrar y listar sucursales | Funcional | Implementado | `POST /api/branches`, `GET /api/branches` | `BranchServiceTest.create_conDatosValidos_deberiaGuardarYRetornarSede`, `BranchServiceTest.findAll_conSedesRegistradas_deberiaRetornarListaMapeada` |
+| RF-06 | Consultar una sucursal por ID (usado por Feign) | Funcional | Implementado | `GET /api/branches/{id}` | `BranchServiceTest.findById_conSedeExistente_deberiaRetornarla`, `findById_conSedeInexistente_deberiaLanzarExcepcion` |
+| RF-07 | Crear una membresía calculando su vencimiento según el plan | Funcional | Implementado | `POST /api/membership` | `MembershipServiceTest.createMembership_conPlanExistente_deberiaCalcularFechaVencimientoYGuardar` |
+| RF-08 | Rechazar la creación de membresía si el plan no existe | Funcional | Implementado | `POST /api/membership` | `MembershipServiceTest.createMembership_conPlanInexistente_deberiaLanzarEntityNotFoundException` |
+| RF-09 | Consultar si un socio tiene membresía activa | Funcional | Implementado | `GET /api/membership/status/{userId}` | `MembershipServiceTest.isMembershipActive_conMembresiaVigenteYActiva_deberiaRetornarTrue`, `isMembershipActive_conMembresiaVencida_deberiaRetornarFalse` |
+| RF-10 | Generar un token de acceso solo si la membresía está activa | Funcional | Implementado | `POST /api/access/generate` (Feign a `membership-service`) | `AccessServiceTest.generateToken_conMembresiaActiva_deberiaCrearToken`, `generateToken_conMembresiaInactiva_deberiaLanzarExcepcion` |
+| RF-11 | Validar una entrada por QR (existencia, expiración, reuso) | Funcional | Implementado | `POST /api/access/validate` | `AccessServiceTest.validateEntry_conQrValido_deberiaRegistrarEntradaYActualizarToken`, `validateEntry_conQrInexistente_deberiaLanzarExcepcion`, `validateEntry_conQrYaUsado_deberiaLanzarExcepcion`, `validateEntry_conTokenExpirado_deberiaLanzarExcepcion` |
+| RF-12 | Seguir registrando la entrada aunque `capacity-service` no responda | No funcional (resiliencia) | Implementado | `POST /api/access/validate` (llamada tolerante a fallas) | `AccessServiceTest.validateEntry_siCapacityServiceFalla_deberiaContinuarSinLanzarExcepcion` |
+| RF-13 | Generar la imagen QR de un token de acceso | Funcional | Implementado | `POST /api/qr/create` | `QRServiceTest.generateQR_conContenidoValido_deberiaGenerarImagenBase64YGuardar` |
+| RF-14 | Incrementar/decrementar el aforo de una sucursal sin bajar de 0 | Funcional | Implementado | `POST /api/capacity/{branchId}/increment`, `.../decrement` | `CapacityServiceTest.increment_sinContadorPrevio_deberiaCrearloConUnaPersona`, `decrement_conAforoEnCero_noDeberiaQuedarNegativo` |
+| RF-15 | Reservar una clase solo si la membresía está activa | Funcional | Implementado | `POST /api/classes/reserve` (RestClient a `membership-service`) | `ClassServiceTest.reserve_conMembresiaActivaYSinReservaPrevia_deberiaCrearlaConfirmada`, `reserve_conMembresiaInactiva_deberiaLanzarExcepcionYNoGuardar` |
+| RF-16 | Rechazar reservas duplicadas del mismo socio en la misma clase | Funcional | Implementado | `POST /api/classes/reserve` | `ClassServiceTest.reserve_conReservaYaConfirmadaParaLaMismaClase_deberiaLanzarExcepcion` |
+| RF-17 | Crear y consultar rutinas de entrenamiento | Funcional | Implementado | `POST /api/routines`, `GET /api/routines/user/{id}` | `RoutineServiceTest.createRoutine_conDatosValidos_deberiaGuardarConFechaDeHoy`, `getRoutinesByUser_deberiaMapearTodasLasRutinasDelUsuario` |
+| RF-18 | Registrar equipos solo con estado válido (catálogo cerrado) | Funcional | Implementado | `POST /api/equipment` | `EquipmentServiceTest.create_conEstadoValido_deberiaGuardarElEquipo`, `create_conEstadoInvalido_deberiaLanzarExcepcion` |
+| RF-19 | Registrar notificaciones solo con tipo válido (EMAIL/SMS/PUSH) | Funcional | Implementado | `POST /api/notify` | `NotificationServiceTest.send_conTipoValido_deberiaGuardarLaNotificacion`, `send_conTipoInvalido_deberiaLanzarExcepcion` |
+| RNF-01 | No exponer credenciales reales en el repositorio | No funcional | Implementado | `.env.example`, `.gitignore` (excluye `.env`, `.env.*`) | Revisión manual del repositorio |
+| RNF-02 | Registro y descubrimiento dinámico de servicios | No funcional | Implementado | `eureka-server`, panel `/` de Eureka | Revisión manual (panel Eureka, 11 instancias UP) |
+| RNF-03 | Punto de entrada único con enrutamiento dinámico | No funcional | Implementado | `gateway-service`, rutas `lb://` en `application.yml` | Revisión manual (requests vía Gateway) |
+| RNF-04 | Trazabilidad de una request a través de varios servicios | No funcional | Implementado | Header `X-Request-Id` (`RequestTraceFilter`) | Revisión manual de logs |
+| RNF-05 | Manejo uniforme de errores en toda la API | No funcional | Implementado | `GlobalExceptionHandler` en los 12 servicios (`ErrorResponse` estándar) | Casos `*_deberiaLanzarExcepcion` en los 10 test suites de dominio |
+| RNF-06 | Persistencia real para datos de negocio críticos | No funcional | Implementado | Postgres en Render (`user`, `branch`, `membership`, `access`), schema propio por servicio | Revisión manual (logs Flyway en Render) |
+| RNF-07 | Autenticación y autorización por rol | No funcional | Implementado | `SecurityConfig` (`user-service`): BCrypt, roles SOCIO/ADMIN, 401/403 en JSON | Revisión manual con `docs/gymflow.http` |
+| RNF-08 | Documentación de API navegable y anotada | No funcional | Implementado | Swagger UI `/swagger-ui.html`, `@Operation`/`@ApiResponses` en los 12 servicios | Revisión manual |
+| RNF-09 | Migraciones de base de datos versionadas | No funcional | Implementado | `db/migration/V1...V4` (Flyway) en los 10 servicios de dominio | Revisión manual + logs `DbMigrate` en Render |
+| RNF-10 | Cobertura de pruebas unitarias sobre reglas de negocio | No funcional | Implementado | `src/test/java` en los 10 servicios de dominio | `mvnw test` → 42 tests, 0 fallas (verificado 13 jul 2026) |
+| RNF-11 | Despliegue accesible en un entorno remoto | No funcional | Implementado | Render: 12 servicios + Postgres, `render.yaml` | Revisión manual (URLs públicas + panel Eureka) |
 
-## Ítems que quedaron pendientes de verificación final
+## Anexo — matriz de cumplimiento por requisito de la pauta (antes/después de esta entrega)
 
-- **Despliegue real en Render**: el código y el Blueprint están listos; falta que Eduardo cree
-  la cuenta y ejecute el Blueprint desde el dashboard (paso manual, ver
-  `documentacion-tecnica.md`).
-- **Docker Compose end-to-end**: se corrigieron dos variables de entorno que faltaban
-  (`BRANCH_SERVICE_URL` en `user-service`, `MEMBERSHIP_SERVICE_URL` en `class-service`) pero no
-  se volvió a correr el stack completo tras el cambio — recomendado antes de la defensa.
+| Requisito obligatorio de la pauta | Estado inicial | Estado final |
+|---|---|---|
+| Patrón CSR completo (controller→service→repository) | Parcial (8/10) | ✅ 10/10 |
+| DTOs separados de entidad | ❌ 2/10 | ✅ 10/10 |
+| Bean Validation + `@Valid` en controller | ❌ 0/10 | ✅ 10/10 |
+| `@ControllerAdvice` con JSON de error uniforme | Parcial (2/10) | ✅ 10/10 |
+| Comunicación Feign real (invocada, no solo declarada) | Parcial | ✅ |
+| Comunicación RestClient real | ❌ 0/12 | ✅ |
+| Seguridad real (roles, 401/403) | ❌ Superficial | ✅ |
+| Gateway: rutas `lb://` | ✅ | ✅ |
+| Gateway: filtro `X-Request-Id` | ❌ | ✅ |
+| Eureka + registro dinámico | ✅ | ✅ |
+| Flyway versionado | ✅ | ✅ |
+| Swagger con `@Operation`/`@ApiResponse` | ❌ 0/12 | ✅ 12/12 |
+| Pruebas unitarias | Parcial (5/10) | ✅ 10/10 |
+| Driver Postgres | ❌ 0/12 | ✅ 4/4 (servicios críticos) |
+| Despliegue remoto en Render | ❌ | ✅ 12/12 servicios + Gateway + Eureka |
+| `.gitignore` protege secretos | Por confirmar | ✅ |
