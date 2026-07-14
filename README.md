@@ -10,6 +10,24 @@ Proyecto EFT DSY1103 (Full Stack 1, Duoc UC). Sistema de gestión de gimnasio co
 
 Coordinación del equipo: Discord y reuniones presenciales (sin tablero Kanban/Trello formal).
 
+## Problema
+
+Un gimnasio con varias sucursales necesita controlar en un solo sistema: quiénes son sus
+socios y si su membresía sigue vigente, el acceso físico a cada sucursal (sin depender de un
+guardia que reconozca caras), el aforo en tiempo real, la reserva de clases, el seguimiento de
+rutinas de entrenamiento, el estado del equipamiento y el envío de notificaciones — todo esto
+sin que la caída de un módulo (por ejemplo, notificaciones) bloquee lo demás (por ejemplo, el
+control de acceso).
+
+## Solución
+
+GymFlow separa cada responsabilidad en un microservicio independiente (12 en total, más un
+Gateway y un servidor de descubrimiento), que se comunican entre sí por HTTP (Feign/RestClient)
+y se registran dinámicamente en Eureka. Esto permite que cada servicio se despliegue, escale y
+falle de forma aislada: si `notification-service` se cae, `access-service` sigue validando
+entradas con normalidad (ver "Comunicación entre servicios" más abajo, especialmente el caso
+`access-service → capacity-service`, tolerante a fallas).
+
 ## Arquitectura
 
 ```
@@ -81,6 +99,114 @@ completa (creación de cuenta, Blueprint, variables de entorno).
 Resumen: el archivo `render.yaml` en la raíz define los 12 servicios + 1 base Postgres. Desde
 el dashboard de Render: **New +** → **Blueprint** → conectar este repositorio → Render crea
 todo automáticamente.
+
+## Estructura del repositorio
+
+```
+gymflow-ecosystem/
+├── README.md
+├── render.yaml                  # Blueprint de despliegue en Render (12 servicios + Postgres)
+├── .env.example                 # Referencia de variables de entorno (sin secretos reales)
+├── .gitignore
+├── docker-compose.yml           # Levanta los 12 servicios localmente
+├── start-all.cmd                # Atajo Windows: arranca los 12 servicios en orden con mvnw
+├── docs/
+│   ├── matriz-requerimientos.md
+│   ├── plan-cierre-feedback.md
+│   ├── documentacion-funcional.md
+│   ├── documentacion-tecnica.md
+│   ├── levantamiento-requerimientos-actualizado.md
+│   ├── presentacion-defensa-grupal.pptx
+│   ├── gymflow.http
+│   └── defensa-individual/
+│       ├── sepulveda-eduardo.md
+│       └── sandoval-joaquin.md
+├── eureka-server/
+├── gateway-service/
+├── user-service/
+├── branch-service/
+├── membership-service/
+├── access-service/
+├── qr-generator-service/
+├── capacity-service/
+├── class-service/
+├── routine-service/
+├── equipment-service/
+└── notification-service/
+    (cada carpeta de servicio sigue la estructura de la sección siguiente)
+```
+
+## Orden de arranque de servicios
+
+Importa solo para ejecución **local** sin Docker Compose (Docker Compose ya maneja el orden por
+healthchecks). Arranca en este orden, esperando ~15-20s entre cada paso para que cada uno
+termine de registrarse en Eureka:
+
+1. `eureka-server` (todo lo demás depende de que esté arriba primero)
+2. `branch-service` y `membership-service` (no dependen de otros servicios de negocio)
+3. `user-service` (depende de `branch-service` vía Feign) y el resto de servicios de dominio
+   (`access-service`, `qr-generator-service`, `capacity-service`, `class-service`,
+   `routine-service`, `equipment-service`, `notification-service`)
+4. `gateway-service` (al final, para que ya tenga servicios registrados a los cuales enrutar)
+
+## Comandos para ejecutar cada servicio sin IDE
+
+Desde la carpeta de cada servicio (Windows usa `mvnw.cmd`, Linux/macOS usa `./mvnw`):
+
+```bash
+cd eureka-server        && ./mvnw spring-boot:run     # o mvnw.cmd spring-boot:run
+cd branch-service       && ./mvnw spring-boot:run
+cd membership-service   && ./mvnw spring-boot:run
+cd user-service         && ./mvnw spring-boot:run
+cd access-service       && ./mvnw spring-boot:run
+cd qr-generator-service && ./mvnw spring-boot:run
+cd capacity-service     && ./mvnw spring-boot:run
+cd class-service        && ./mvnw spring-boot:run
+cd routine-service      && ./mvnw spring-boot:run
+cd equipment-service    && ./mvnw spring-boot:run
+cd notification-service && ./mvnw spring-boot:run
+cd gateway-service      && ./mvnw spring-boot:run
+```
+
+## Comandos para correr las pruebas
+
+```bash
+cd <cualquier-servicio-de-dominio>
+./mvnw test          # Linux/macOS
+mvnw.cmd test         # Windows
+```
+
+Corre los 42 tests unitarios (JUnit 5 + Mockito) de ese servicio. Repetir en cada uno de los 10
+servicios de dominio para correr la suite completa.
+
+## Rutas principales del Gateway
+
+Todo pasa por `http://localhost:8082` (local) o la URL pública de `gateway-service` (Render).
+El Gateway enruta por prefijo de path, no por nombre de servicio:
+
+| Prefijo | Servicio destino |
+|---|---|
+| `/api/users/**` | user-service |
+| `/api/branches/**` | branch-service |
+| `/api/membership/**` | membership-service |
+| `/api/access/**` | access-service |
+| `/api/qr/**` | qr-generator-service |
+| `/api/capacity/**` | capacity-service |
+| `/api/classes/**` | class-service |
+| `/api/routines/**` | routine-service |
+| `/api/equipment/**` | equipment-service |
+| `/api/notify/**` | notification-service |
+
+## Usuarios de prueba y roles
+
+Sembrados vía Flyway (`V4__seed_users.sql` en `user-service`), contraseñas reales con BCrypt:
+
+| Email | Contraseña | Rol |
+|---|---|---|
+| `admin@gymflow.cl` | `admin123` | ADMIN (puede listar todos los usuarios, `GET /api/users`) |
+| `socio@gymflow.cl` | `socio123` | SOCIO (rol estándar, sin acceso a endpoints de ADMIN) |
+
+Autenticación vía Basic Auth. Ejemplo de header ya codificado en `docs/gymflow.http`.
 
 ## Estructura de cada microservicio
 

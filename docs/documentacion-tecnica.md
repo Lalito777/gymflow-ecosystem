@@ -56,6 +56,75 @@ JSON) y `AccessDeniedHandler` propio (403 en JSON) — necesarios porque Spring 
 estas excepciones ANTES de que el `@ControllerAdvice` pueda interceptarlas, así que se manejan
 en la capa de seguridad directamente para mantener el mismo formato de error en todo el sistema.
 
+## Responsabilidades por servicio
+
+| Servicio | Responsabilidad | Base de datos |
+|---|---|---|
+| eureka-server | Registro y descubrimiento dinámico de todos los demás servicios | — |
+| gateway-service | Punto de entrada único, enrutamiento por prefijo de path, header `X-Request-Id` | — |
+| user-service | Usuarios, autenticación (BCrypt), autorización por rol (SOCIO/ADMIN) | Postgres |
+| branch-service | Sucursales del gimnasio | Postgres |
+| membership-service | Planes y membresías, cálculo de vigencia | Postgres |
+| access-service | Emisión y validación de tokens de acceso físico | Postgres |
+| qr-generator-service | Generación de la imagen QR (Base64) a partir de un token | H2 |
+| capacity-service | Contador de aforo en tiempo real por sucursal | H2 |
+| class-service | Reserva de clases, validación de membresía activa | H2 |
+| routine-service | Rutinas de entrenamiento asignadas a socios | H2 |
+| equipment-service | Inventario de equipos y su estado | H2 |
+| notification-service | Registro de notificaciones enviadas | H2 |
+
+## Modelo de datos y relaciones principales
+
+GymFlow es un ecosistema de microservicios con **base de datos por servicio** (cada uno es
+dueño de sus propias tablas); no hay foreign keys físicas entre servicios distintos — las
+relaciones entre entidades de servicios distintos son **lógicas**, por `id` referenciado, y se
+verifican en tiempo de ejecución vía Feign/RestClient, no a nivel de base de datos.
+
+**Entidades principales y sus campos clave:**
+
+- `users` (user-service): `id, name, email (unique), subscriptionPlan, password, role, branchId`
+- `branches` (branch-service): `id, name, address, maxCapacity`
+- `memberships` (membership-service): `id, userId, planId, fechaInicio, fechaVencimiento, estado`
+- `plans` (membership-service): `id, nombre, precio, duracionDias, descripcion` (catálogo fijo,
+  sembrado por Flyway — no hay endpoint para crear planes vía API)
+- `access_tokens` (access-service): `id, userId, branchId, qrCode, fechaExpiracion, estado`
+- `access_logs` (access-service): `id, userId, branchId, tipo, timestamp`
+
+**Relaciones lógicas (cross-servicio, verificadas en tiempo de ejecución, no por FK física):**
+
+- `users.branchId` → `branches.id`: verificado por Feign (`BranchClient.getBranchById`) al
+  crear un usuario; si la sucursal no existe, se rechaza con 404 antes de guardar.
+- `memberships.userId` → `users.id`: no se verifica activamente (no hay Feign hacia
+  `user-service` desde `membership-service`); se asume un `userId` válido provisto por quien
+  llama.
+- `memberships.planId` → `plans.id`: relación real dentro del mismo servicio (sí es FK física,
+  ambas tablas viven en `membership-service`); si el plan no existe, 404.
+- `access_tokens.userId` → `users.id` y verificación de membresía activa: `access-service`
+  consulta `membership-service` (Feign) por `userId` antes de emitir el token.
+- `access_logs` se genera a partir de un `access_tokens` validado (mismo servicio, misma base).
+
+## Logs
+
+Cada servicio usa SLF4J (vía Spring Boot) con niveles diferenciados: `debug` para flujo normal
+detallado (ej. "Validando sucursal #1 contra branch-service"), `warn` para rechazos de negocio
+esperados (ej. "Registro rechazado: la sucursal no existe"), `error` para fallos no esperados
+(ej. dependencia remota caída). En local, los logs se ven directo en la terminal donde corre
+`mvnw spring-boot:run` o con `docker compose logs -f <servicio>`. En Render, cada servicio tiene
+su propia pestaña **Logs** en el dashboard, con historial y logs en vivo — usado activamente
+durante el despliegue de esta entrega para diagnosticar el `UnknownHostException` de Eureka y el
+`Migration checksum mismatch` de Flyway (ver `plan-cierre-feedback.md`).
+
+## Pruebas
+
+42 tests unitarios (JUnit 5 + Mockito) distribuidos en los 10 servicios de dominio, todos en
+`src/test/java`, siguiendo la estructura Given-When-Then. Se prueba la capa `service` (donde
+vive la lógica de negocio), incluyendo casos de éxito y casos de error (entidad no encontrada,
+datos inválidos, dependencia remota caída). No hay pruebas de integración (`@SpringBootTest`)
+ni de `Controller`/`Repository` por separado — se priorizó cubrir las reglas de negocio, que es
+lo que pedía el feedback de la 3ª evaluación (`plan-cierre-feedback.md`, FB-03). El detalle
+completo de qué prueba cada test está en `docs/matriz-requerimientos.md` (columna "Prueba
+asociada"). Ejecutar con `mvnw test` desde cada servicio; ver comando exacto en el README.
+
 ## Estructura del repositorio
 
 ```

@@ -166,3 +166,131 @@ Content-Type: application/json
 ### Reemplaza {{user}}, {{branch}}, etc. por {{gateway}} manteniendo el mismo path, ej:
 
 ### GET {{gateway}}/api/branches
+
+### =====================================================================
+### CASOS DE ERROR (datos invalidos, recursos inexistentes, permisos insuficientes)
+### =====================================================================
+
+### --- Datos invalidos (400) ---
+
+### Crear sucursal sin nombre (campo obligatorio) -> 400, "fields" indica el campo
+POST {{branch}}/api/branches
+Content-Type: application/json
+
+{
+  "name": "",
+  "address": "Av. Providencia 1234",
+  "maxCapacity": 100
+}
+
+### Crear usuario con rol invalido -> 400
+POST {{user}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Usuario Invalido",
+  "email": "invalido@gymflow.cl",
+  "subscriptionPlan": "BASICO",
+  "password": "clave123",
+  "role": "SUPERADMIN",
+  "branchId": 1
+}
+
+### Registrar equipo con estado fuera del catalogo -> 400
+POST {{equipment}}/api/equipment
+Content-Type: application/json
+
+{
+  "nombre": "Maquina fantasma",
+  "categoria": "Cardio",
+  "branchId": 1,
+  "estado": "ROTO_IRREPARABLEMENTE"
+}
+
+### Registrar notificacion con tipo invalido -> 400
+POST {{notification}}/api/notify
+Content-Type: application/json
+
+{
+  "destinatarioId": 2,
+  "tipo": "WHATSAPP",
+  "mensaje": "Tipo no soportado"
+}
+
+### --- Recursos inexistentes (404) ---
+
+### Consultar sucursal que no existe -> 404
+GET {{branch}}/api/branches/99999
+
+### Crear usuario con sucursal inexistente -> 404 (valida en vivo via Feign contra branch-service)
+POST {{user}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Usuario Sin Sucursal",
+  "email": "sinsucursal@gymflow.cl",
+  "subscriptionPlan": "BASICO",
+  "password": "clave123",
+  "role": "SOCIO",
+  "branchId": 99999
+}
+
+### Crear membresia con plan inexistente -> 404
+POST {{membership}}/api/membership
+Content-Type: application/json
+
+{
+  "userId": 2,
+  "planId": 99999
+}
+
+### Validar acceso con un QR que nunca existio -> 404
+POST {{access}}/api/access/validate
+Content-Type: application/json
+
+{
+  "qrCode": "qr-code-que-no-existe-jamas",
+  "branchId": 1
+}
+
+### --- Permisos insuficientes (401 / 403) ---
+
+### Listar usuarios sin credenciales -> 401
+GET {{user}}/api/users
+
+### Listar usuarios autenticado como SOCIO (rol insuficiente, requiere ADMIN) -> 403
+GET {{user}}/api/users
+Authorization: Basic c29jaW9AZ3ltZmxvdy5jbDpzb2NpbzEyMw==
+
+### Listar usuarios con password incorrecto -> 401
+GET {{user}}/api/users
+Authorization: Basic YWRtaW5AZ3ltZmxvdy5jbDpjbGF2ZWluY29ycmVjdGE=
+
+### --- Regla de negocio (409, no es error de formato sino de estado) ---
+
+### Reutilizar un QR ya validado -> 409 (verificado en vivo contra Render el 13-07-2026)
+POST {{access}}/api/access/validate
+Content-Type: application/json
+
+{
+  "qrCode": "REEMPLAZAR-CON-UN-QRCODE-YA-USADO",
+  "branchId": 1
+}
+
+### --- Mismos casos de error, mostrando que el Gateway los propaga igual ---
+
+### 404 a traves del Gateway
+GET {{gateway}}/api/branches/99999
+
+### 401 a traves del Gateway
+GET {{gateway}}/api/users
+
+### 400 a traves del Gateway
+POST {{gateway}}/api/notify
+Content-Type: application/json
+
+{
+  "destinatarioId": 2,
+  "tipo": "WHATSAPP",
+  "mensaje": "Tipo no soportado, probado via Gateway"
+}

@@ -72,3 +72,42 @@ el token existe, ya se confirmó que la membresía estaba activa en ese momento.
 - Un equipo o notificación con un estado/tipo fuera del catálogo permitido se rechaza (400).
 - Solo un ADMIN puede listar todos los usuarios (`GET /api/users`); cualquier otro rol recibe
   403.
+
+## Estados relevantes
+
+| Entidad | Estados posibles | Transición |
+|---|---|---|
+| Membresía | `ACTIVA` → `VENCIDA` | Automática, al comparar `fechaVencimiento` con la fecha actual (no hay un job; se calcula en cada consulta) |
+| Token de acceso | `PENDIENTE` → `USADO` | Al validar la entrada exitosamente (`POST /api/access/validate`); un token `USADO` no puede reutilizarse |
+| Reserva de clase | `CONFIRMADA` | Estado único hoy; no hay cancelación implementada |
+| Equipo | `DISPONIBLE`, `EN_MANTENCION`, `FUERA_DE_SERVICIO` | Manual, vía `PUT`/`POST` del administrador; catálogo cerrado (cualquier otro valor se rechaza con 400) |
+| Notificación | `EMAIL`, `SMS`, `PUSH` (tipo, no estado de envío) | No hay seguimiento de entrega; el registro representa la intención de notificar, no una confirmación externa |
+
+## Restricciones del dominio
+
+- Un usuario siempre pertenece a exactamente una sucursal, asignada al crearlo; no hay
+  traspaso de sucursal implementado.
+- Una membresía pertenece a un único usuario; un usuario puede tener más de una membresía en
+  el tiempo (histórico), pero el estado "activa" se resuelve por fecha de vencimiento, no por
+  un flag exclusivo.
+- Un token de acceso es de un solo uso: una vez validado, cualquier reintento con el mismo
+  `qrCode` es rechazado (409), incluso dentro de su ventana de vigencia.
+- El aforo de una sucursal (`capacity-service`) nunca puede ser negativo: un `decrement` sobre
+  contador en 0 se ignora en vez de fallar.
+- Los catálogos de `estado` (equipos) y `tipo` (notificaciones) son cerrados: cualquier valor
+  fuera de la lista permitida se rechaza con 400, no se guarda como texto libre.
+- Un socio no puede tener dos reservas `CONFIRMADA` para la misma clase.
+
+## Datos de prueba sugeridos
+
+Usar en este orden para armar un escenario completo (coincide con `docs/gymflow.http`):
+
+1. Sucursal: `{"name":"GymFlow Providencia","address":"Av. Providencia 1234","maxCapacity":100}`
+2. Usuario: `{"name":"Juan Pérez","email":"juan.perez@gymflow.cl","subscriptionPlan":"BASICO","password":"clave123","role":"SOCIO","branchId":1}`
+3. Membresía: `{"userId":<id del paso 2>,"planId":1}` (planes sembrados por Flyway: 1=BASICO, 2=PREMIUM, 3=VIP)
+4. Token de acceso: `{"userId":<id>,"branchId":1}`
+5. QR: `{"accessTokenId":<id del token>,"contenido":"<qrCode del paso 4>"}`
+6. Validar entrada: `{"qrCode":"<mismo qrCode>","branchId":1}`
+
+Usuarios ya sembrados para probar login/roles sin crear nada: `admin@gymflow.cl` / `admin123`
+(ADMIN) y `socio@gymflow.cl` / `socio123` (SOCIO) — ver `README.md`.

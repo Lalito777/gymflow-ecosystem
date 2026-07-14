@@ -133,3 +133,61 @@ Los lugares más probables donde te pueden pedir un cambio en vivo, y qué archi
 - Cambiar el formato de un error → `config/GlobalExceptionHandler.java` del servicio.
 - Restringir un endpoint a un rol → `config/SecurityConfig.java` (solo existe en
   `user-service`).
+
+## 4.5. Una relación de base de datos que domino
+
+En `membership-service`, `memberships.planId` es una foreign key real hacia `plans.id` — ambas
+tablas viven en el mismo servicio y la misma base, así que ahí sí es una relación física, no
+solo lógica. `plans` es un catálogo fijo (BASICO, PREMIUM, VIP) sembrado por Flyway
+(`V2__seed_plans.sql`); no existe ningún endpoint para crear planes vía API a propósito, porque
+son datos de catálogo del negocio, no algo que un usuario deba poder generar. Cuando se crea una
+membresía (`POST /api/membership`), `MembershipService` busca el plan por `planId` con
+`planRepository.findById(...).orElseThrow(...)`; si no existe, lanza `EntityNotFoundException`
+(404) antes de guardar nada. Si existe, calcula `fechaVencimiento` sumando
+`plan.getDuracionDias()` a la fecha actual — por eso la duración de la membresía depende
+directamente del plan elegido, no es un valor fijo. Distinto es el caso de
+`memberships.userId` → `users.id`: esa relación es solo lógica (cruza de `membership-service` a
+`user-service`, dos bases de datos distintas), y a propósito no se verifica con un Feign en este
+punto — se explica y se justifica la decisión en `documentacion-tecnica.md`, sección "Modelo de
+datos y relaciones principales".
+
+## 5. Rol dentro del equipo
+
+Desarrollo backend transversal: estructura inicial de los 12 microservicios, capa de seguridad
+de `user-service`, comunicación entre servicios (Feign + RestClient), corrección de los 6 gaps
+del feedback de la 3ª evaluación, migración a Postgres y despliegue completo en Render.
+
+## 6. Commits propios (hash real, verificable con `git log`)
+
+| Hash | Fecha | Mensaje |
+|---|---|---|
+| `1e55687` | 2026-05-27 | feat: estructura inicial del ecosistema GymFlow con 10 microservicios |
+| `a43d7b1` | 2026-06-28 | feat: agregar API Gateway con rutas a los 10 microservicios |
+| `dd93a14` | 2026-06-28 | feat: agregar Swagger/OpenAPI y spring-boot-starter-test a los 10 servicios |
+| `87df134` | 2026-06-28 | test: agregar tests unitarios JUnit+Mockito en user, branch, membership, access y qr-generator-service |
+| `5939995` | 2026-06-28 | docs: actualizar README con arquitectura, puertos y guía de ejecución |
+| `e7e05dd` | 2026-06-28 | fix: agregar config eureka explícita en branch-service |
+| `061ea43` | 2026-06-29 | docs: agregar nombres del equipo al README |
+| `72e3cde` | 2026-07-13 | Postgres + Render + documentación final |
+| `ce571c9` | 2026-07-13 | fix: schema propio por servicio en Postgres compartido (Flyway checksum) |
+| `06a9e36` | 2026-07-13 | fix: registrar servicios en Eureka con URL pública (plan free no recibe tráfico privado) |
+| `e6f0252` | 2026-07-13 | fix: leer BRANCH_SERVICE_URL/MEMBERSHIP_SERVICE_URL directo desde el código, sin YAML intermedio |
+| `ca22adb` | 2026-07-13 | docs: matriz de requerimientos y plan de cierre según pauta |
+
+Repositorio: `https://github.com/Lalito777/gymflow-ecosystem`.
+
+## 7. Tareas del tablero
+
+El equipo no usó un tablero Kanban formal (Trello/GitHub Projects); la coordinación de tareas
+fue por Discord y reuniones presenciales.
+
+## 8. Checklist personal de evidencia para la defensa
+
+- [ ] Puedo explicar por qué cada servicio usa H2 o Postgres.
+- [ ] Puedo mostrar en vivo el flujo de 3 pasos de control de acceso (`generate` → `qr/create` →
+      `validate`) usando `docs/gymflow.http`.
+- [ ] Puedo mostrar el registro en Eureka de los 12 servicios desplegados en Render.
+- [ ] Puedo explicar la limitación de red privada del plan free de Render y cómo se resolvió.
+- [ ] Puedo correr `mvnw test` en al menos 2 servicios en vivo y explicar qué prueba cada test.
+- [ ] Puedo señalar dónde se corrigió cada uno de los 6 puntos del feedback de la 3ª evaluación.
+- [ ] Puedo modificar en vivo una regla de negocio simple sin ayuda externa.
