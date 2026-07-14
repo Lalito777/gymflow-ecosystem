@@ -5,7 +5,7 @@ lo suficiente para explicarlo con tus palabras y modificar el código en vivo si
 Recuerda: en la defensa NO puedes usar IA — este documento es para estudiar antes, no para leer
 durante.
 
-## 1. Qué cambié y por qué (resumen ejecutivo, en tus palabras)
+## 1. Qué cambié y por qué 
 
 Encontré que el proyecto tenía huecos más grandes de lo que el profesor había marcado: 8 de 10
 servicios exponían directamente sus entidades de base de datos en vez de usar DTOs, ningún
