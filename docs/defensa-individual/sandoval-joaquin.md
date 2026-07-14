@@ -75,6 +75,7 @@ Para garantizar la estabilidad del sistema y respaldar la defensa del proyecto, 
 
 
 ## 🗺️ 5. Diagramas de Arquitectura y Flujo de Datos
+
 ### Topología de Microservicios (Eureka Discovery)
 Este diagrama muestra cómo todos los servicios de la red que levanté se registran dinámicamente en el servidor de descubrimiento para comunicarse entre sí:
 
@@ -84,7 +85,7 @@ graph TD
         Eureka[Eureka Server :8761]
     end
 
-    subgraph Clúster de Microservicios
+    subgraph Cluster de Microservicios
         US[user-service :8080]
         MS[membership-service :8083]
         AS[access-service :8084]
@@ -92,17 +93,17 @@ graph TD
         QR[qr-generator-service :8085]
     end
 
-    US -->|Registro| Eureka
-    MS -->|Registro| Eureka
-    AS -->|Registro| Eureka
-    BS -->|Registro| Eureka
-    QR -->|Registro| Eureka
+    US --> Eureka
+    MS --> Eureka
+    AS --> Eureka
+    BS --> Eureka
+    QR --> Eureka
 
     style Eureka fill:#f9f,stroke:#333,stroke-width:2px
+```
 
-
-Flujo de Generación de Acceso y QR (Orquestación Síncrona)
-Este es el camino exacto que recorre la información cuando el usuario pasa por el torniquete electrónico, 
+###Flujo de Generación de Acceso y QR (Orquestación Síncrona)
+##Este es el camino exacto que recorre la información cuando el usuario pasa por el torniquete electrónico, 
 aplicando la comunicación por cliente REST declarativo (Feign Client) y la serialización binaria:
 
 sequenceDiagram
