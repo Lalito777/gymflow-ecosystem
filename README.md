@@ -3,6 +3,13 @@
 Proyecto EFT DSY1103 (Full Stack 1, Duoc UC). Sistema de gestión de gimnasio construido como
 12 microservicios independientes con Spring Boot 3.2.5, Spring Cloud 2023.0.1 y Java 17.
 
+## Equipo
+
+- Eduardo Sepulveda
+- Joaquín Sandoval
+
+Coordinación del equipo: Discord y reuniones presenciales (sin tablero Kanban/Trello formal).
+
 ## Arquitectura
 
 ```
@@ -25,20 +32,23 @@ Todos los servicios se registran en `eureka-server` y el `gateway-service` enrut
 
 ## Servicios y puertos
 
-| Servicio | Puerto | Base de datos | Rol |
-|---|---|---|---|
-| eureka-server | 8761 | — | Registro de servicios |
-| gateway-service | 8082 | — | Punto de entrada único, enrutamiento `lb://` |
-| user-service | 8080 | Postgres | Usuarios, autenticación (Basic Auth + BCrypt), roles SOCIO/ADMIN |
-| branch-service | 8081 | Postgres | Sucursales |
-| membership-service | 8083 | Postgres | Membresías y su estado (activa/inactiva) |
-| access-service | 8084 | Postgres | Control de acceso (valida QR + membresía activa) |
-| qr-generator-service | 8085 | H2 (memoria) | Generación de códigos QR |
-| capacity-service | 8086 | H2 (memoria) | Aforo en tiempo real por sucursal |
-| class-service | 8087 | H2 (memoria) | Reserva de clases (valida membresía activa vía RestClient) |
-| routine-service | 8088 | H2 (memoria) | Rutinas de entrenamiento |
-| equipment-service | 8089 | H2 (memoria) | Inventario de equipos |
-| notification-service | 8090 | H2 (memoria) | Notificaciones (EMAIL/SMS/PUSH) |
+| Servicio | Puerto | Base de datos | Rol | URL pública (Render) |
+|---|---|---|---|---|
+| eureka-server | 8761 | — | Registro de servicios | https://eureka-server-x49r.onrender.com |
+| gateway-service | 8082 | — | Punto de entrada único, enrutamiento `lb://` | https://gateway-service-yitx.onrender.com |
+| user-service | 8080 | Postgres | Usuarios, autenticación (Basic Auth + BCrypt), roles SOCIO/ADMIN | https://user-service-jny5.onrender.com |
+| branch-service | 8081 | Postgres | Sucursales | https://branch-service-u39g.onrender.com |
+| membership-service | 8083 | Postgres | Membresías y su estado (activa/inactiva) | https://membership-service-7po0.onrender.com |
+| access-service | 8084 | Postgres | Control de acceso (valida QR + membresía activa) | https://access-service-3da4.onrender.com |
+| qr-generator-service | 8085 | H2 (memoria) | Generación de códigos QR | https://qr-generator-service-p4wn.onrender.com |
+| capacity-service | 8086 | H2 (memoria) | Aforo en tiempo real por sucursal | https://capacity-service.onrender.com |
+| class-service | 8087 | H2 (memoria) | Reserva de clases (valida membresía activa vía RestClient) | https://class-service-xexo.onrender.com |
+| routine-service | 8088 | H2 (memoria) | Rutinas de entrenamiento | https://routine-service-0snh.onrender.com |
+| equipment-service | 8089 | H2 (memoria) | Inventario de equipos | https://equipment-service-472j.onrender.com |
+| notification-service | 8090 | H2 (memoria) | Notificaciones (EMAIL/SMS/PUSH) | https://notification-service-mgoz.onrender.com |
+
+Nota: en el plan free de Render los servicios se "duermen" tras 15 minutos sin tráfico; la
+primera petición después de eso puede tardar hasta 50 segundos en responder mientras despierta.
 
 Los 4 servicios con datos de negocio críticos (usuarios, sucursales, membresías, accesos) usan
 Postgres real en Render. Los otros 8 manejan datos operativos/efímeros y se dejan en H2 en
@@ -101,5 +111,6 @@ Ver carpeta `docs/`:
 - `documentacion-funcional.md` — qué hace el sistema, flujos de usuario.
 - `documentacion-tecnica.md` — arquitectura, patrones, cómo correr todo desde cero.
 - `levantamiento-requerimientos-actualizado.md` — requerimientos actualizados a la entrega final.
-- `defensa-individual/sepulveda-eduardo.md` — guía de defensa personal.
+- `defensa-individual/sepulveda-eduardo.md` — guía de defensa personal (Eduardo).
+- `defensa-individual/sandoval-joaquin.md` — guía de defensa personal (Joaquín).
 - `gymflow.http` — colección de requests de ejemplo para probar cada endpoint.
